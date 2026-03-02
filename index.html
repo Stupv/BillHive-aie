@@ -1009,7 +1009,7 @@ function renderBillBody(bill) {
           </div>`;
       }).join('')}
       <div class="add-line-row">
-        <button class="btn btn-ghost btn-xs" onclick="addLine('${bill.id}')">＋ Add Line</button>
+        <button class="btn btn-ghost btn-xs" onclick="addLine('${bill.id}')">＋ Add Person</button>
       </div>
     `;
   } else {
@@ -1074,7 +1074,7 @@ function renderBillBody(bill) {
           </div>`;
       }).join('')}
       <div class="add-line-row" style="display:flex;align-items:center;gap:12px;">
-        <button class="btn btn-ghost btn-xs" onclick="addLine('${bill.id}')">+ Add Line</button>
+        <button class="btn btn-ghost btn-xs" onclick="addLine('${bill.id}')">+ Add Person</button>
         <span style="font-size:10px;color:var(--muted2)">R = remainder absorber &nbsp;·&nbsp; Covered By = who actually pays you</span>
       </div>
     `;
