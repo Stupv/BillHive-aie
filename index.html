@@ -653,6 +653,7 @@ function save() {
 }
 
 async function _flushState() {
+  _saveTimer = null; // Clear so SSE reload can proceed after this save completes
   try {
     await fetch(`${API}/state`, {
       method: 'PUT',
@@ -767,6 +768,7 @@ document.addEventListener('focusout', () => {
 
 async function _reloadFromServer() {
   if (_reloading) return;
+  if (_saveTimer) return; // Pending local changes — skip reload to avoid overwriting unsaved state
   _reloading = true;
   try {
     await load();
