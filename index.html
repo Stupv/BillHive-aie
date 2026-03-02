@@ -896,9 +896,7 @@ function renderBills() {
 
     const split = computeBillSplit(bill);
     const myShare = split['me'] || 0;
-    const billTotal = bill.splitType === 'fixed'
-      ? bill.lines.reduce((s,l) => s + getLineAmount(bill.id, l.id), 0)
-      : total;
+    const billTotal = total;
 
     const card = document.createElement('div');
     card.className = 'bill-card';
@@ -1283,9 +1281,7 @@ function refreshBillBody(billId) {
   // Update header totals
   const split = computeBillSplit(bill);
   const myShare = split['me'] || 0;
-  const billTotal = bill.splitType === 'fixed'
-    ? bill.lines.reduce((s,l) => s + getLineAmount(bill.id, l.id), 0)
-    : getBillTotal(bill.id);
+  const billTotal = getBillTotal(bill.id);
   const totalEl = card.querySelector('.bill-total-display');
   if (totalEl) {
     totalEl.textContent = billTotal > 0 ? `$${billTotal.toFixed(2)}` : '—';
@@ -1387,9 +1383,7 @@ function renderSummary() {
     let html = '';
     S.bills.forEach(bill => {
       const split = computeBillSplit(bill);
-      const billTotal = bill.splitType==='fixed'
-        ? bill.lines.reduce((s,l)=>s+getLineAmount(bill.id,l.id),0)
-        : getBillTotal(bill.id);
+      const billTotal = getBillTotal(bill.id);
       if (billTotal === 0) return;
       html += `<div style="margin-bottom:16px;">
         <div style="font-family:'DM Mono',monospace;font-weight:700;font-size:13px;margin-bottom:6px;color:${bill.color}">${bill.icon} ${bill.name} — $${billTotal.toFixed(2)} total</div>`;
@@ -1823,9 +1817,7 @@ function renderTrendsPersonView() {
     const k = monthKey();
     const pieLabels = [], pieData = [], pieColors = [];
     S.bills.forEach(bill => {
-      const total = bill.splitType==='fixed'
-        ? bill.lines.reduce((s,l)=>s+getLineAmount(bill.id,l.id),0)
-        : getBillTotal(bill.id);
+      const total = getBillTotal(bill.id);
       if (total > 0) { pieLabels.push(bill.name); pieData.push(total); pieColors.push(bill.color); }
     });
     pieChartInst = new Chart(ctx2, {
@@ -1858,9 +1850,6 @@ function renderTrendsPersonView() {
 
 function getBillTotalForMonth(monthData, bill) {
   if (!monthData) return 0;
-  if (bill.splitType === 'fixed') {
-    return Object.values(monthData.amounts?.[bill.id] || {}).reduce((s, v) => s + (v || 0), 0);
-  }
   return monthData.totals?.[bill.id] || 0;
 }
 
