@@ -550,7 +550,6 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0;}
   </div>
 
   <div class="action-row">
-    <button class="btn btn-green" onclick="saveSettings()">Save Settings</button>
     <button class="btn btn-ghost" onclick="exportData()">Export Backup</button>
     <label class="btn btn-ghost" style="cursor:pointer;">
       Import Backup
@@ -2145,7 +2144,7 @@ function renderGreetingConfig() {
         </div>
         <input type="text" value="${p.greeting||''}"
                placeholder="Hi ${p.name},"
-               oninput="S.people[${idx}].greeting=this.value"
+               oninput="S.people[${idx}].greeting=this.value" onchange="save()"
                style="font-size:12px;">
       </div>`;
   }).join('') || '<div style="color:var(--muted);font-size:12px;">Add people above first.</div>';
@@ -2225,7 +2224,7 @@ function renderPeopleConfig() {
           </div>
           <div class="person-field">
             <div class="person-field-label">Payment</div>
-            <select onchange="S.people[${idx}].payMethod=this.value;renderPeopleConfig();">
+            <select onchange="S.people[${idx}].payMethod=this.value;save();renderPeopleConfig();">
               <option value="none"    ${p.payMethod==='none'    ?'selected':''}>None</option>
               <option value="zelle"   ${p.payMethod==='zelle'   ?'selected':''}>Zelle</option>
               <option value="venmo"   ${p.payMethod==='venmo'   ?'selected':''}>Venmo</option>
@@ -2275,13 +2274,6 @@ function removePerson(idx) {
     S.people.splice(idx,1);
     renderPeopleConfig();
   }, { okLabel:'Remove', danger:true });
-}
-
-function saveSettings() {
-  save();
-  renderBills();
-  renderSendPay();
-  toast('Settings saved!');
 }
 
 function exportData() {
