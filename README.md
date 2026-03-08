@@ -182,4 +182,8 @@ A native iOS app is available at [github.com/martyportatoes/billhive-ios](https:
 
 ---
 
-<script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="mportelos" data-color="#FFDD00" data-emoji="🍺" data-font="Cookie" data-text="Buy me a beer" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff" ></script>
+<p align="center">
+  <a href="https://www.buymeacoffee.com/mportelos">
+    <img src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20beer&emoji=🍺&slug=mportelos&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy Me a Beer" />
+  </a>
+</p>
