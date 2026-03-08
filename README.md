@@ -8,12 +8,6 @@
 
 <p align="center">Runs as a <strong>single Docker container</strong> with a SQLite database. No cloud, no subscription, no external services required.</p>
 
-<p align="center">
-  <a href="https://www.buymeacoffee.com/mportelos">
-    <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me a Coffee" />
-  </a>
-</p>
-
 ---
 
 ## Screenshots
@@ -185,3 +179,7 @@ Data in the volume is preserved across updates.
 ## iOS Companion App
 
 A native iOS app is available at [github.com/martyportatoes/billhive-ios](https://github.com/martyportatoes/billhive-ios). It connects directly to your self-hosted BillHive server — same data, same splits, same email summaries from your iPhone.
+
+---
+
+<script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="mportelos" data-color="#FFDD00" data-emoji="🍺" data-font="Cookie" data-text="Buy me a beer" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff" ></script>
