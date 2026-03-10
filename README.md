@@ -178,7 +178,9 @@ Data in the volume is preserved across updates.
 
 ## iOS Companion App
 
-A native iOS app is available at [github.com/martyportatoes/billhive-ios](https://github.com/martyportatoes/billhive-ios). It connects directly to your self-hosted BillHive server — same data, same splits, same email summaries from your iPhone.
+A native iOS app called "SelfHive" is currenty in the works and should be available in the app store within the next few weeks. Source code is available at [github.com/martyportatoes/billhive-ios](https://github.com/martyportatoes/billhive-ios). The SelfHive app connects directly to your self-hosted BillHive server.
+
+A standalone version of the app, simply called "BillHive" will be available as well for anyone not interested in selfhosting.
 
 ---
 
