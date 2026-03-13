@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BillHive</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syncopate:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Outfit:wght@300;400;500;600&family=Syncopate:wght@400;700&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg:       #0c0d0f;
@@ -23,10 +23,11 @@
   --purple:   #b39ddb;
   --red:      #ef5350;
   --yellow:   #ffd54f;
+  --hover:    rgba(255,255,255,.025);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html{scroll-behavior:smooth;}
-body{background-color:var(--bg);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50ZM28 100L0 84L0 68L28 52L56 68L56 84Z' fill='none' stroke='%23F5A800' stroke-opacity='0.06' stroke-width='0.75'/%3E%3C/svg%3E");color:var(--text);font-family:'DM Mono',monospace;font-size:13px;min-height:100vh;line-height:1.5;}
+body{background-color:var(--bg);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='84' height='150'%3E%3Cpath d='M42 99L0 75L0 24L42 0L84 24L84 75ZM42 150L0 126L0 102L42 78L84 102L84 126Z' fill='none' stroke='%23F5A800' stroke-opacity='0.04' stroke-width='0.5'/%3E%3C/svg%3E");color:var(--text);font-family:'Outfit',sans-serif;font-size:14px;min-height:100vh;line-height:1.5;}
 
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar{width:4px;height:4px;}
@@ -43,7 +44,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
 .logo-name span{color:var(--green);}
 .logo-sub{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);line-height:1;margin-top:2px;}
 .header-right{display:flex;align-items:center;gap:12px;}
-.month-pill{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;}
+.month-pill{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:4px 10px;}
 .month-pill select,.month-pill input{background:transparent;border:none;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;cursor:pointer;}
 .month-pill input{width:52px;}
 
@@ -61,7 +62,7 @@ main{overflow-y:auto;padding:24px 28px;}
 @keyframes fadein{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 
 /* ── TYPOGRAPHY ── */
-.page-title{font-family:'DM Mono',monospace;font-weight:500;font-size:18px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;}
+.page-title{font-family:'Outfit',sans-serif;font-weight:600;font-size:18px;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px;}
 .page-sub{color:var(--muted);font-size:11px;margin-bottom:24px;}
 
 /* ── CARDS ── */
@@ -74,7 +75,7 @@ main{overflow-y:auto;padding:24px 28px;}
 /* ── INPUTS ── */
 input[type=text],input[type=number],input[type=email],input[type=url],input[type=password],select,textarea{
   background:var(--surface2);border:1px solid var(--border);color:var(--text);
-  padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;border-radius:6px;
+  padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;border-radius:8px;
   outline:none;width:100%;transition:border-color .15s;
 }
 input:focus,select:focus,textarea:focus{border-color:var(--green);}
@@ -88,7 +89,7 @@ select option{background:var(--surface2);}
 input[type=range]{accent-color:var(--green);width:100%;margin:0;}
 
 /* ── BUTTONS ── */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:6px;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;cursor:pointer;border:none;transition:all .15s;white-space:nowrap;text-decoration:none;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;cursor:pointer;border:none;transition:all .15s;white-space:nowrap;text-decoration:none;}
 .btn-green{background:var(--green);color:#0c0d0f;}
 .btn-green:hover{background:#f7bc2a;}
 .btn-blue{background:var(--blue);color:#0c0d0f;}
@@ -121,7 +122,7 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0;}
 .bill-card:hover{border-color:var(--border2);}
 .bill-card.expanded{border-color:var(--border2);}
 .bill-header{display:grid;grid-template-columns:1fr 160px 160px 40px;gap:10px;align-items:center;padding:14px 18px;cursor:pointer;user-select:none;}
-.bill-header:hover{background:rgba(255,255,255,.02);}
+.bill-header:hover{background:var(--hover);}
 .bill-name-wrap{display:flex;align-items:center;gap:10px;}
 .bill-icon{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
 .bill-name{font-family:'DM Mono',monospace;font-weight:500;font-size:13px;letter-spacing:.06em;text-transform:uppercase;}
@@ -140,7 +141,7 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0;}
 .person-card:hover{border-color:var(--border2);}
 .person-card.expanded{border-color:var(--border2);}
 .person-header{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;user-select:none;}
-.person-header:hover{background:rgba(255,255,255,.025);}
+.person-header:hover{background:var(--hover);}
 .person-header-name{font-family:'DM Mono',monospace;font-size:13px;font-weight:600;letter-spacing:.04em;}
 .person-header-meta{font-size:10px;color:var(--muted);margin-left:auto;}
 .person-expand-btn{width:24px;height:24px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .15s;flex-shrink:0;}
@@ -166,8 +167,8 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0;}
 /* split config */
 .split-config{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);flex-wrap:wrap;}
 .split-config label{font-size:11px;color:var(--muted);}
-.split-type-toggle{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;}
-.split-type-toggle button{padding:5px 12px;background:transparent;border:none;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:all .15s;}
+.split-type-toggle{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.split-type-toggle button{padding:5px 12px;background:transparent;border:none;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:all .15s;border-radius:5px;}
 .split-type-toggle button.active{background:var(--surface3);color:var(--green);}
 .preserve-row{display:flex;align-items:center;gap:8px;padding:10px 0 2px;border-top:1px solid var(--border);margin-top:12px;}
 .preserve-row-label{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;cursor:pointer;user-select:none;}
@@ -196,7 +197,7 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0;}
 
 /* ── PERSON CARDS in summary ── */
 .person-summary-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;position:relative;overflow:hidden;}
-.person-summary-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.person-summary-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
 .pscard-wife::before{background:var(--green);}
 .pscard-dad::before{background:var(--orange);}
 .pscard-other::before{background:var(--purple);}
@@ -312,18 +313,11 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0;}
 
 <header>
   <div class="logo">
-    <svg class="logo-mark" width="32" height="28" viewBox="0 0 32 27.713" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="hxAmber" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD000"/><stop offset="100%" stop-color="#D4890A"/></linearGradient>
-      </defs>
-      <!-- Outer amber hex ring -->
-      <polygon points="8,0 24,0 32,13.856 24,27.713 8,27.713 0,13.856" fill="url(#hxAmber)"/>
-      <!-- Dark inner hex cutout -->
-      <polygon points="10.4,4.2 21.6,4.2 27.2,13.856 21.6,23.5 10.4,23.5 4.8,13.856" fill="#0e0e0e"/>
-      <!-- Centered amber bars -->
-      <rect x="11" y="9.43" width="10" height="2" rx="1" fill="url(#hxAmber)"/>
-      <rect x="9.5" y="12.86" width="13" height="2" rx="1" fill="url(#hxAmber)"/>
-      <rect x="10.5" y="16.29" width="11" height="2" rx="1" fill="url(#hxAmber)"/>
+    <svg class="logo-mark" width="28" height="28" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <!-- Cluster: 3 flat-top honeycomb cells -->
+      <polygon points="48.6,50 41.2,62.8 26.4,62.8 19,50 26.4,37.2 41.2,37.2" fill="#F5A800"/>
+      <polygon points="72.9,36 65.5,48.8 50.7,48.8 43.3,36 50.7,23.2 65.5,23.2" fill="#F5A800"/>
+      <polygon points="72.9,64 65.5,76.8 50.7,76.8 43.3,64 50.7,51.2 65.5,51.2" fill="#F5A800"/>
     </svg>
     <div class="logo-wordmark">
       <div class="logo-name">Bill<span>Hive</span></div>
