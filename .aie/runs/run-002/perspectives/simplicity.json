@@ -1,0 +1,143 @@
+{
+  "perspective_name": "simplicity",
+  "raw_output": {
+    "summary": "BillHive is a compact, well-structured three-file application. Two critical issues stand out: the sanitize-html config uses `allowedAttributes: false` which allows JavaScript event-handler attributes through the sanitizer, and `buildEmailHtml` has no type guards before calling `.toFixed(2)` on bill amounts, creating a crash path on bad input. A third security concern is SMTP TLS verification being disabled unconditionally. On the simplicity front, a recurring pattern of duplicated JSON parse try/catch blocks (six instances in server.js) deserves extraction into a helper, and `buildEmailHtml` has grown into a 200-line monolith mixing payment-provider branching with HTML assembly. Two small correctness bugs were also found: the rate limiter is applied twice to the SPA fallback route, and the import endpoint skips the month-key format validation that the PUT endpoint enforces. All findings are fixable with small, targeted changes.",
+    "findings": [
+      {
+        "id": "R-001",
+        "severity": "critical",
+        "title": "sanitize-html allowedAttributes: false permits event-handler attributes",
+        "description": "In email.js, EMAIL_SANITIZE_OPTS sets `allowedAttributes: false`, which per the sanitize-html docs allows ALL HTML attributes on all tags — including `onclick`, `onerror`, `onload`, `onmouseover`, etc. This makes the sanitization pass-through for attribute-based XSS. The intent is to preserve inline styles for email clients, but the broad setting also allows JavaScript event handlers through. If any bill name, greeting, or other user-controlled field ever reaches `buildEmailHtml` with injected markup (e.g., via a compromised DB entry or a future code path), the sanitizer will not strip it.",
+        "affected_files": [
+          "email.js"
+        ],
+        "affected_symbols": [
+          "sendEmail",
+          "EMAIL_SANITIZE_OPTS"
+        ],
+        "recommendation": "Replace `allowedAttributes: false` with an explicit allowlist that covers every attribute needed for email rendering. For example: `{ '*': ['style', 'class', 'id', 'align', 'width', 'height', 'bgcolor', 'cellpadding', 'cellspacing', 'border', 'valign', 'colspan', 'rowspan', 'href', 'src', 'alt', 'title', 'target', 'rel'] }`. This preserves inline styling and layout attributes while stripping all event handlers.",
+        "effort_to_fix": "small"
+      },
+      {
+        "id": "R-002",
+        "severity": "critical",
+        "title": "No type guard on bill amounts before .toFixed(2) — crash risk",
+        "description": "In emailTemplate.js, `buildEmailHtml` calls `b.amount.toFixed(2)` on each bill entry and `total.toFixed(2)` without verifying that `bills` is a non-empty array, that each item has an `amount` field, or that `amount` and `total` are actually numbers. If `bills` is undefined, null, or contains items with a missing or non-numeric `amount` (e.g., after a partial import), this throws a TypeError at runtime. In server.js the `/api/email/send` and `/api/email/test` handlers call `buildEmailHtml` before the try/catch that wraps `sendEmail`, so the crash propagates as an unhandled 500.",
+        "affected_files": [
+          "emailTemplate.js",
+          "server.js"
+        ],
+        "affected_symbols": [
+          "buildEmailHtml"
+        ],
+        "recommendation": "Add a guard at the top of `buildEmailHtml`: `if (!Array.isArray(bills)) throw new Error('bills must be an array');` and coerce each entry: `const safeBills = bills.map(b => ({ name: String(b.name ?? ''), amount: Number(b.amount) || 0 }));`. Do the same for total: `const safeTotal = Number(total) || 0;`. Alternatively, validate the request body in the `/api/email/send` handler before passing it to the template.",
+        "effort_to_fix": "small"
+      },
+      {
+        "id": "R-003",
+        "severity": "warning",
+        "title": "SMTP transport disables TLS certificate verification unconditionally",
+        "description": "`sendViaSmtp` sets `tls: { rejectUnauthorized: false }` for every connection regardless of server type. This silently accepts forged or expired certificates, enabling MITM attacks on all SMTP traffic — including connections to public providers like Gmail or Fastmail where the flag is entirely unnecessary. The comment cites self-signed certs on self-hosted servers as motivation, but applying it globally undermines transport security for all other cases.",
+        "affected_files": [
+          "email.js"
+        ],
+        "affected_symbols": [
+          "sendViaSmtp"
+        ],
+        "recommendation": "Add an `smtpAllowSelfSigned` boolean to the SMTP config shape and only set `rejectUnauthorized: false` when that flag is explicitly `true`. Default behaviour should leave `rejectUnauthorized: true` so connections to public relays are properly verified.",
+        "effort_to_fix": "small"
+      },
+      {
+        "id": "R-004",
+        "severity": "warning",
+        "title": "SSE client Map retains empty Sets after disconnect — memory leak",
+        "description": "In server.js, `sseClients` is a `Map<userId, Set<res>>`. When a client disconnects, the `req.on('close')` handler removes the `res` from the Set but never removes the now-empty Set from the Map. In a long-running or multi-user deployment the Map accumulates one dead entry per user who has ever opened `/api/events`, growing without bound.",
+        "affected_files": [
+          "server.js"
+        ],
+        "affected_symbols": [
+          "broadcastChange"
+        ],
+        "recommendation": "After deleting the res in the close handler, prune empty Sets: `const s = sseClients.get(req.userId); s?.delete(res); if (s?.size === 0) sseClients.delete(req.userId);`",
+        "effort_to_fix": "trivial"
+      },
+      {
+        "id": "R-005",
+        "severity": "warning",
+        "title": "Rate limiter applied twice to the SPA fallback route — halves effective limit for frontend users",
+        "description": "In server.js, `app.use(limiter)` is registered globally so every request already passes through it. The SPA catch-all then applies it a second time: `app.get('*', limiter, (req, res) => {...})`. Every page load consumes two tokens from the bucket, effectively halving the configured threshold of 300 req/15 min to ~150 page navigations for regular users browsing the frontend.",
+        "affected_files": [
+          "server.js"
+        ],
+        "affected_symbols": [],
+        "recommendation": "Remove the inline `limiter` argument from the catch-all route: change `app.get('*', limiter, (req, res) => {` to `app.get('*', (req, res) => {`. The global middleware already covers it.",
+        "effort_to_fix": "trivial"
+      },
+      {
+        "id": "R-006",
+        "severity": "warning",
+        "title": "Import endpoint skips the month_key format validation enforced by PUT",
+        "description": "The `PUT /api/months/:key` handler validates the key with `/^\\d{4}-\\d{2}$/` before writing. The `POST /api/import` handler, which also calls `stmts.setMonth.run`, performs no such validation. An import payload with arbitrary month keys will be written to `monthly_data` unchecked, creating schema inconsistency that could cause subtle downstream bugs when those keys are later read back or displayed.",
+        "affected_files": [
+          "server.js"
+        ],
+        "affected_symbols": [],
+        "recommendation": "Inside the import transaction, validate each monthly key before writing: `if (!/^\\d{4}-\\d{2}$/.test(k)) continue;`. This keeps the import path consistent with the single-record PUT endpoint.",
+        "effort_to_fix": "trivial"
+      },
+      {
+        "id": "R-007",
+        "severity": "warning",
+        "title": "JSON parse try/catch fallback pattern duplicated six times in server.js",
+        "description": "The pattern `try { JSON.parse(row.value/data/config) } catch { fallback }` appears at least six times across server.js: in `GET /api/state`, `GET /api/months`, `GET /api/months/:key`, `GET /api/export` (twice), `GET /api/email/config`, and `PUT /api/email/config`. Each copy uses a slightly different fallback (`{}`, `null`, silent skip), making error-handling behaviour inconsistent and scattered. Any change to logging or fallback semantics must be applied in multiple places.",
+        "affected_files": [
+          "server.js"
+        ],
+        "affected_symbols": [],
+        "recommendation": "Extract a single utility at the top of server.js: `function parseJson(str, fallback = null) { try { return JSON.parse(str); } catch { return fallback; } }`. Replace all six inline try/catch blocks with calls to this helper. This also provides a single location to add diagnostic logging for parse failures.",
+        "effort_to_fix": "small"
+      },
+      {
+        "id": "R-008",
+        "severity": "info",
+        "title": "buildEmailHtml is a 200-line monolith mixing template assembly with payment-method branching",
+        "description": "In emailTemplate.js, `buildEmailHtml` does everything sequentially: validates the accent color, constructs payment CTA HTML for four different providers (~60 lines of nested conditionals and template literals), maps bill rows to HTML, assembles a ~150-line full HTML document, and generates the plain-text fallback. The payment CTA section alone contains four distinct branches of deeply nested template strings. This makes it difficult to test payment-method logic in isolation, to preview a single section, or to modify one provider without risk of inadvertently affecting another.",
+        "affected_files": [
+          "emailTemplate.js"
+        ],
+        "affected_symbols": [
+          "buildEmailHtml"
+        ],
+        "recommendation": "Extract at minimum two helpers: (1) `buildPaymentCta(payMethod, payId, customZelleUrl, accentColor, total)` returning the `payButtonHtml` string; (2) `buildBillRows(bills, accentColor)` returning the bill-row HTML. Optionally, extract `buildEmailText(opts)` for the plain-text path. This reduces `buildEmailHtml` to a thin assembler and makes each section independently testable.",
+        "effort_to_fix": "small"
+      },
+      {
+        "id": "R-009",
+        "severity": "info",
+        "title": "post() and postForm() duplicate identical response-handling boilerplate",
+        "description": "In email.js, `post` and `postForm` are structurally identical: both call `fetch`, await `res.text()`, throw on `!res.ok`, and return the text. The only differences are the Content-Type header and body serialisation method. Any future change to error formatting, timeout handling, or retry logic requires editing both functions.",
+        "affected_files": [
+          "email.js"
+        ],
+        "affected_symbols": [
+          "post",
+          "postForm"
+        ],
+        "recommendation": "Merge into a single helper: `async function httpPost(url, headers, body, asForm = false)` that sets the Content-Type and serialises the body based on the `asForm` flag (`URLSearchParams` vs `JSON.stringify`). All four provider dispatch functions then call this one helper.",
+        "effort_to_fix": "trivial"
+      }
+    ]
+  },
+  "metadata": {
+    "model": "claude-sonnet-4-6",
+    "stage": "review_simplicity",
+    "input_tokens": 6,
+    "output_tokens": 11518,
+    "duration_seconds": 196.98
+  },
+  "success": true,
+  "error": null,
+  "error_type": null,
+  "error_detail": null,
+  "duration_seconds": 196.98
+}

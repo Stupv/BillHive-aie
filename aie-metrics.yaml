@@ -1,0 +1,47 @@
+version: "1"
+
+project:
+  name: BillHive
+  language: javascript
+  src_dirs: [.]
+  test_dirs: []
+
+# Documentation files for feature ideation (optional)
+docs: [README.md]
+
+metrics:
+  eslint_violations:
+    description: "ESLint lint violations"
+    unit: count
+    direction: lower_is_better
+    target: 0
+    source:
+      command: "npx eslint {src_dirs} --format json"
+      parser: eslint_json
+
+  prettier_violations:
+    description: "Files needing formatting"
+    unit: count
+    direction: lower_is_better
+    target: 0
+    source:
+      command: "npx prettier --check {src_dirs}"
+      parser: prettier_check
+
+  dockerfile_issues:
+    description: "Hadolint Dockerfile lint violations"
+    unit: count
+    direction: lower_is_better
+    target: 0
+    source:
+      command: "hadolint Dockerfile --format json"
+      parser: hadolint_json
+
+constraints:
+  max_files_per_improvement: 5
+  # max_improvements_per_run: 3  # omit for unlimited (all fixes)
+  allow_new_dependencies: false
+  allow_schema_changes: false
+  require_tests: true
+  min_confidence: 0.7
+  require_approval: true

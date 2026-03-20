@@ -1,0 +1,58 @@
+{
+  "project_name": "BillHive",
+  "project_path": "/projects/external/BillHive",
+  "metrics": {
+    "eslint_violations": {
+      "metric_id": "eslint_violations",
+      "value": 0.0,
+      "unit": "count",
+      "raw_output": "",
+      "details": {
+        "by_rule": {},
+        "by_severity": {},
+        "by_file": {}
+      },
+      "collected_at": "2026-03-20T12:53:26.558232Z",
+      "duration_seconds": 0.46
+    },
+    "prettier_violations": {
+      "metric_id": "prettier_violations",
+      "value": 7.0,
+      "unit": "count",
+      "raw_output": "Checking formatting...\n",
+      "details": {
+        "unformatted_files": [
+          "docker-compose.yml",
+          "email.js",
+          "emailTemplate.js",
+          "index.html",
+          "README.md",
+          "server.js",
+          "Code style issues found in 6 files. Run Prettier with --write to fix."
+        ]
+      },
+      "collected_at": "2026-03-20T12:53:27.806506Z",
+      "duration_seconds": 1.71
+    },
+    "dockerfile_issues": {
+      "metric_id": "dockerfile_issues",
+      "value": 1.0,
+      "unit": "count",
+      "raw_output": "[{\"code\":\"DL3018\",\"column\":1,\"file\":\"Dockerfile\",\"level\":\"warning\",\"line\":4,\"message\":\"Pin versions in apk add. Instead of `apk add <package>` use `apk add <package>=<version>`\"}]",
+      "details": {
+        "by_level": {
+          "warning": 1
+        },
+        "by_code": {
+          "DL3018": 1
+        },
+        "total": 1
+      },
+      "collected_at": "2026-03-20T12:53:26.129190Z",
+      "duration_seconds": 0.03
+    }
+  },
+  "collected_at": "2026-03-20T12:53:26.093061Z",
+  "total_duration_seconds": 1.71,
+  "errors": {}
+}

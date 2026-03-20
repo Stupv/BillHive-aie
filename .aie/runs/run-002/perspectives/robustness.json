@@ -1,0 +1,115 @@
+{
+  "perspective_name": "robustness",
+  "raw_output": {
+    "findings": [
+      {
+        "id": "R-001",
+        "severity": "critical",
+        "title": "Crash in buildEmailHtml when bills is not an array or total is not a number",
+        "description": "In emailTemplate.js, `bills.map(b => ...)` is called unconditionally, and `total.toFixed(2)` is called in multiple places. In server.js POST /api/email/send, `bills` and `total` are taken directly from `req.body` with no type checking before being passed to `buildEmailHtml`. If `bills` is null, undefined, or not an array, the `.map()` call throws TypeError. If `total` is a string or undefined, `.toFixed()` throws. This causes an unhandled exception inside an async route handler resulting in a 500. The same crash applies inside billRowsHtml where `b.amount.toFixed(2)` is called per item with no numeric guard.",
+        "affected_files": [
+          "server.js",
+          "emailTemplate.js"
+        ],
+        "affected_symbols": [
+          "buildEmailHtml"
+        ],
+        "recommendation": "Validate in the /api/email/send handler that `bills` is an Array, `total` is a finite number, and each `bill.amount` is a finite number before calling buildEmailHtml. Return a 400 on failure. Also add defensive guards inside buildEmailHtml itself: `const safeBills = Array.isArray(bills) ? bills : [];` and `const safeTotal = typeof total === 'number' && isFinite(total) ? total : 0;`.",
+        "effort_to_fix": "small"
+      },
+      {
+        "id": "R-002",
+        "severity": "critical",
+        "title": "No timeout on outbound HTTP calls to email provider APIs",
+        "description": "The `post()` and `postForm()` helpers in email.js issue fetch() calls with no AbortController signal. If Mailgun, SendGrid, or Resend hangs, the Express route handler for /api/email/send and /api/email/test will hang indefinitely, holding the HTTP connection open. Under load, a stalled email provider can exhaust all open connections and render the application unresponsive. The same applies to sendViaSmtp via nodemailer, which has no explicit connectionTimeout or socketTimeout configured.",
+        "affected_files": [
+          "email.js"
+        ],
+        "affected_symbols": [
+          "post",
+          "postForm",
+          "sendViaSmtp"
+        ],
+        "recommendation": "Pass an AbortSignal with a 15-second timeout to every fetch call using AbortController. For sendViaSmtp, add `connectionTimeout: 10000` and `socketTimeout: 15000` to the nodemailer transport options.",
+        "effort_to_fix": "small"
+      },
+      {
+        "id": "R-003",
+        "severity": "warning",
+        "title": "User identity derived entirely from spoofable HTTP headers with no proxy enforcement",
+        "description": "In server.js, req.userId is set by reading remote-user, x-authentik-username, x-forwarded-user, or x-remote-user headers with no mechanism to verify a reverse proxy is actually in the request path. If BillHive is ever reachable directly (LAN port exposure, proxy misconfiguration, initial setup), any client can set remote-user to any value and gain full read/write access to that user's bills, email config, and stored API keys. The fallback to 'local' only activates when none of the headers are present — sending even one is trusted unconditionally.",
+        "affected_files": [
+          "server.js"
+        ],
+        "affected_symbols": [],
+        "recommendation": "Add a configurable TRUSTED_PROXY_SECRET environment variable that must match a header value injected by the proxy. Log a prominent startup warning when it is unset. For stronger security, use a per-request HMAC of the username signed by the proxy, which both Authelia and Authentik support natively.",
+        "effort_to_fix": "medium"
+      },
+      {
+        "id": "R-004",
+        "severity": "warning",
+        "title": "SSE client Sets are never pruned from the Map, causing persistent memory growth",
+        "description": "In server.js, sseClients is a Map keyed by userId, each holding a Set of response objects. The req.on('close') handler removes the res from the Set but never removes the empty Set from the Map, so the Map grows indefinitely with a dead Set for every user who has ever opened an SSE connection. Additionally, there is no heartbeat comment written to the stream. Reverse proxies commonly have idle-connection timeouts of 60-300 seconds; when a proxy silently drops a stale connection the close event may not fire, allowing dead res objects to accumulate in the Set and causing silent write errors in broadcastChange.",
+        "affected_files": [
+          "server.js"
+        ],
+        "affected_symbols": [
+          "broadcastChange"
+        ],
+        "recommendation": "After deleting res from its Set in the close handler, check if the Set is empty and delete it from the Map. Add a periodic setInterval heartbeat (e.g. every 25 seconds) that writes a comment ping to each res and removes any that throw, clearing the interval when done.",
+        "effort_to_fix": "small"
+      },
+      {
+        "id": "R-005",
+        "severity": "warning",
+        "title": "SMTP TLS certificate verification unconditionally disabled for all connections",
+        "description": "In email.js sendViaSmtp, the nodemailer transport is created with `tls: { rejectUnauthorized: false }`. The comment explains this is for self-signed certificates on self-hosted servers, but the setting applies to all SMTP connections regardless of host. If a user configures an external relay (Gmail, Outlook, Fastmail), TLS validation is silently bypassed, making the connection vulnerable to man-in-the-middle attacks and exposing smtpUser/smtpPass credentials in cleartext to any attacker on the network path.",
+        "affected_files": [
+          "email.js"
+        ],
+        "affected_symbols": [
+          "sendViaSmtp"
+        ],
+        "recommendation": "Make the setting opt-in via a config flag (e.g. cfg.smtpAllowSelfSigned), defaulting to secure: `tls: { rejectUnauthorized: !(cfg.smtpAllowSelfSigned === true) }`. Display a warning in the settings UI when the user enables it.",
+        "effort_to_fix": "trivial"
+      },
+      {
+        "id": "R-006",
+        "severity": "warning",
+        "title": "Import endpoint accepts unbounded unvalidated data and allows malformed month keys",
+        "description": "The POST /api/import handler in server.js accepts any JSON body and writes every key/value from state and monthly to the database inside a transaction with no schema validation. Month keys in the imported monthly object are never checked against the YYYY-MM regex that PUT /api/months/:key enforces, so malformed keys can be persisted. The 2 MB body limit provides only a coarse guard. An import runs INSERT OR REPLACE unconditionally, silently overwriting all live user data with no confirmation step.",
+        "affected_files": [
+          "server.js"
+        ],
+        "affected_symbols": [],
+        "recommendation": "Validate that state and monthly are plain objects if present. Apply the YYYY-MM regex to each month key and reject or skip invalid ones. Add a key-count cap (e.g. 500 state keys, 120 month keys). Consider a dryRun query parameter for validation without committing.",
+        "effort_to_fix": "small"
+      },
+      {
+        "id": "R-007",
+        "severity": "info",
+        "title": "Month key format not validated on DELETE, only on PUT",
+        "description": "In server.js, PUT /api/months/:key validates the key against /^\\d{4}-\\d{2}$/ and returns 400 on mismatch. DELETE /api/months/:key calls stmts.deleteMonth.run unconditionally with no format check. While this is a no-op in SQLite for non-existent rows, it creates an inconsistency in the API contract and can silently mask client-side bugs.",
+        "affected_files": [
+          "server.js"
+        ],
+        "affected_symbols": [],
+        "recommendation": "Add the same regex guard at the top of the DELETE handler before running the statement: `if (!/^\\d{4}-\\d{2}$/.test(key)) return res.status(400).json({ error: 'Invalid month key (expected YYYY-MM)' });`",
+        "effort_to_fix": "trivial"
+      }
+    ],
+    "summary": "BillHive is a compact, well-structured self-hosted billing app. The two most urgent robustness issues are: a crash condition in the email template builder triggered by unvalidated API input (R-001), and the absence of timeouts on all outbound email provider HTTP calls which can hang the server indefinitely under a slow or unresponsive upstream (R-002). Beyond these, the auth model's unconditional trust of reverse-proxy headers without any enforcement mechanism poses a meaningful security risk in misconfigured deployments (R-003). SSE connection hygiene (R-004), SMTP TLS defaulting to disabled certificate verification (R-005), and the unvalidated import endpoint (R-006) are solid warning-level issues for a production-quality release. A minor API consistency gap exists in the months DELETE path (R-007)."
+  },
+  "metadata": {
+    "model": "claude-sonnet-4-6",
+    "stage": "review_robustness",
+    "input_tokens": 6,
+    "output_tokens": 10231,
+    "duration_seconds": 193.95
+  },
+  "success": true,
+  "error": null,
+  "error_type": null,
+  "error_detail": null,
+  "duration_seconds": 193.96
+}
