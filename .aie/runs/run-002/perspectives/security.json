@@ -1,0 +1,134 @@
+{
+  "perspective_name": "security",
+  "raw_output": {
+    "findings": [
+      {
+        "id": "R-001",
+        "severity": "critical",
+        "title": "Proxy auth headers trivially spoofable — any client can impersonate any user",
+        "description": "The authentication middleware in server.js unconditionally trusts `remote-user`, `x-authentik-username`, `x-forwarded-user`, and `x-remote-user` HTTP headers with no validation that the request actually arrived through a trusted reverse proxy. If the application is reachable directly on port 8080 (e.g. Docker port-mapping, misconfigured firewall rule, or during dev), any unauthenticated client can inject `remote-user: victim` and read, write, or delete all of that user's data — bills, monthly records, email config including encrypted provider secrets. The app also has no IP allowlist or signed-token mechanism to distinguish proxy-forwarded requests from direct ones.",
+        "affected_files": [
+          "server.js"
+        ],
+        "affected_symbols": [
+          "app.use"
+        ],
+        "recommendation": "Add a mandatory shared secret between the reverse proxy and the application. For example, require a `X-Internal-Token` header whose value matches a secret set via environment variable, and reject any request where it is absent or wrong. Alternatively, bind the server to 127.0.0.1 instead of 0.0.0.0 so it is unreachable without going through the proxy. Both mitigations together are ideal. As a minimum, document the requirement explicitly and add a startup warning when `NODE_ENV !== 'production'`.",
+        "effort_to_fix": "small"
+      },
+      {
+        "id": "R-002",
+        "severity": "critical",
+        "title": "SMTP TLS certificate verification disabled — credentials and email content exposed to MitM",
+        "description": "In `sendViaSmtp`, the nodemailer transport is created with `tls: { rejectUnauthorized: false }`. This disables certificate validation for every SMTP connection, regardless of whether the user has configured a public mail relay (Gmail SMTP, Fastmail, AWS SES) or a self-hosted one. An attacker who can intercept the network path between BillHive and the SMTP server — trivially possible on the same Docker network, LAN segment, or a compromised relay — can present a self-signed certificate, establish a successful TLS handshake, and read the SMTP credentials (`smtpUser`/`smtpPass`) and all email content in cleartext. The comment 'allow self-signed for self-hosted' does not justify disabling validation universally.",
+        "affected_files": [
+          "email.js"
+        ],
+        "affected_symbols": [
+          "sendViaSmtp"
+        ],
+        "recommendation": "Remove `rejectUnauthorized: false` from the default transport config. Expose an optional boolean field (e.g. `smtpAllowSelfSigned`) in the email config schema and only set `rejectUnauthorized: false` when the user explicitly enables it. Validated in the PUT /api/email/config handler to ensure it can only be set intentionally.",
+        "effort_to_fix": "trivial"
+      },
+      {
+        "id": "R-003",
+        "severity": "warning",
+        "title": "sanitize-html configured with `allowedAttributes: false` — event handlers pass through unchanged",
+        "description": "The `EMAIL_SANITIZE_OPTS` in email.js sets `allowedAttributes: false`, which tells sanitize-html to allow every attribute on every permitted tag. This means event-handler attributes such as `onerror`, `onload`, `onclick`, and `onmouseover` on tags like `<img>`, `<svg>`, or `<body>` are not stripped. Combined with `allowVulnerableTags: true` (which permits `<style>` tags), the sanitizer provides substantially weaker protection than its presence implies. The comment '`// Sanitize HTML to prevent injection — breaks CodeQL taint chain`' is a warning sign that the sanitizer's primary function here is to satisfy static analysis rather than to genuinely neutralise malicious payloads. If any code path in the future calls `sendEmail()` with partially user-controlled HTML, event-handler-based XSS payloads will survive sanitization and be delivered to recipients' email clients.",
+        "affected_files": [
+          "email.js"
+        ],
+        "affected_symbols": [
+          "EMAIL_SANITIZE_OPTS",
+          "sendEmail"
+        ],
+        "recommendation": "Replace `allowedAttributes: false` with an explicit allowlist. For email HTML the necessary attributes are predictable: `style`, `width`, `height`, `cellpadding`, `cellspacing`, `align`, `valign`, `colspan`, `rowspan`, `src` (https/data only), `href`, `alt`, `lang`, `charset`, `content`, `name`, `xmlns`, `viewBox`, `points`, `x`, `y`, `rx`, `fill`. Enumerate them in the config. This eliminates all event-handler attributes and on/off-off-screen properties. If `data:` URIs for inline images are needed, add them to `allowedSchemesAppliedToAttributes` restricted to `src` only rather than globally.",
+        "effort_to_fix": "small"
+      },
+      {
+        "id": "R-004",
+        "severity": "warning",
+        "title": "`data:` URI scheme globally allowed in HTML sanitizer — enables phishing and tracking pixels",
+        "description": "The `allowedSchemes` array in `EMAIL_SANITIZE_OPTS` includes `'data'`. Because `allowedAttributes: false` (see R-003) allows the `src` attribute on all tags, any `data:` URI can appear on any element. This enables: (a) inline JavaScript execution in email clients that support `data:text/html` or `data:text/javascript` URIs on anchors or iframes; (b) insertion of tracking pixels via `data:image/...` that bypass some privacy guards; (c) embedding of arbitrary binary content. Email clients vary widely in how they handle `data:` URIs, and some older clients execute them.",
+        "affected_files": [
+          "email.js"
+        ],
+        "affected_symbols": [
+          "EMAIL_SANITIZE_OPTS"
+        ],
+        "recommendation": "Remove `'data'` from `allowedSchemes`. If inline images are genuinely needed for the logo or other assets, host them at a stable HTTPS URL or use Content-ID attachments via nodemailer instead of base64 data URIs.",
+        "effort_to_fix": "trivial"
+      },
+      {
+        "id": "R-005",
+        "severity": "warning",
+        "title": "Import API does not validate month keys — bypasses YYYY-MM enforcement applied elsewhere",
+        "description": "The `PUT /api/months/:key` endpoint enforces `if (!/^\\d{4}-\\d{2}$/.test(key))` before writing to the database. However, the `POST /api/import` endpoint iterates `Object.entries(m)` and calls `stmts.setMonth.run(userId, k, ...)` for every key without any format validation. An attacker (or a corrupt import file) can insert arbitrarily-named month_key rows — including very long strings — into the `monthly_data` table. This causes inconsistencies in the application's data model and could be used to corrupt another user's data if a userId collision were somehow achieved via header spoofing (R-001).",
+        "affected_files": [
+          "server.js"
+        ],
+        "affected_symbols": [
+          "app.post"
+        ],
+        "recommendation": "Apply the same `/^\\d{4}-\\d{2}$/` validation to each month key inside the import transaction, and skip (or reject) any key that does not match. Optionally add a maximum import payload size check beyond the existing 2 MB `express.json` limit, e.g. capping the number of month entries to a reasonable bound like 120.",
+        "effort_to_fix": "trivial"
+      },
+      {
+        "id": "R-006",
+        "severity": "warning",
+        "title": "Raw exception messages from email sending exposed to API clients",
+        "description": "Both `/api/email/send` and `/api/email/test` catch errors from `sendEmail()` and return `e.message` directly in the JSON response body. Errors from provider APIs and from nodemailer can contain sensitive details: SMTP server hostnames, partial credentials in authentication failure messages, internal network addresses, and provider-specific debugging information. For example, a nodemailer SMTP authentication failure typically includes the server greeting, the attempted username, and the SASL response code.",
+        "affected_files": [
+          "server.js"
+        ],
+        "affected_symbols": [
+          "app.post"
+        ],
+        "recommendation": "Log the full error server-side (`console.error('Email send failed:', e)`) and return a sanitised, generic message to the client such as `'Email delivery failed. Check your provider configuration.'`. Only include the error `code` or a mapped human-readable category (auth failure, network timeout, etc.) in the response, never the raw `message` string.",
+        "effort_to_fix": "trivial"
+      },
+      {
+        "id": "R-007",
+        "severity": "warning",
+        "title": "Unlimited SSE connections per user — denial of service via connection exhaustion",
+        "description": "The `/api/events` SSE endpoint adds every new response object to a per-user Set with no cap on the number of concurrent connections. Each SSE connection holds an open HTTP socket and is tracked in the `sseClients` Map for the lifetime of the connection. A malicious or malfunctioning client can open thousands of simultaneous SSE connections for the same `userId`, exhausting file descriptors and memory on the Node.js process. This is particularly acute when combined with the auth spoofing issue (R-001), where an attacker could flood connections for any target user.",
+        "affected_files": [
+          "server.js"
+        ],
+        "affected_symbols": [
+          "broadcastChange",
+          "app.get"
+        ],
+        "recommendation": "Add a per-user connection limit (e.g. 10) checked before adding to the Set. If the limit is reached, send an error event and call `res.end()` on the oldest connection (or the new one) before returning. Also apply the rate limiter specifically to the SSE endpoint or introduce a separate, stricter limiter for it.",
+        "effort_to_fix": "small"
+      },
+      {
+        "id": "R-008",
+        "severity": "info",
+        "title": "No format validation on `to` recipient address before invoking email providers",
+        "description": "The `/api/email/send` endpoint checks only that `to` is truthy (`if (!to)`), then passes it directly to provider API calls and SMTP. Malformed or deliberately crafted recipient strings (e.g. `user@domain%0a%0dBcc: attacker@evil.com`) could trigger header injection in the nodemailer SMTP path or unexpected behaviour in provider APIs. Additionally, there is no check preventing the server from being used to relay emails to arbitrary third-party addresses beyond what the user intends.",
+        "affected_files": [
+          "server.js"
+        ],
+        "affected_symbols": [
+          "app.post"
+        ],
+        "recommendation": "Validate the `to` field against a basic email regex (e.g. `/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/`) and reject clearly invalid values with a 400 response before any email sending logic is reached. Nodemailer's address parser handles header injection internally, but explicit validation provides defence-in-depth and better UX.",
+        "effort_to_fix": "trivial"
+      }
+    ],
+    "summary": "BillHive is a compact, well-structured Node.js billing application, but it has two critical security vulnerabilities and several meaningful warnings. The most serious issue is that authentication relies entirely on HTTP headers that any direct client can forge — if the app is reachable on port 8080 without passing through Authelia/Authentik first, there is no access control at all. The second critical issue is that SMTP TLS certificate verification is unconditionally disabled, exposing mail credentials and content to interception on any network path. The HTML sanitizer configuration is significantly weaker than it appears: `allowedAttributes: false` lets event handlers through, `data:` URIs are globally permitted, and the sanitizer's own comment hints it was added primarily to satisfy static analysis. Additionally, raw exception messages from provider API failures are surfaced directly to the browser, potentially leaking infrastructure details, and the SSE endpoint has no connection cap, enabling memory exhaustion. The email template itself (`emailTemplate.js`) is well-written — `escapeHtml` and `safeUrl` are correctly applied to all user-controlled values, and the accentColor hex validation is solid."
+  },
+  "metadata": {
+    "model": "claude-sonnet-4-6",
+    "stage": "review_security",
+    "input_tokens": 4,
+    "output_tokens": 7026,
+    "duration_seconds": 149.51
+  },
+  "success": true,
+  "error": null,
+  "error_type": null,
+  "error_detail": null,
+  "duration_seconds": 149.51
+}

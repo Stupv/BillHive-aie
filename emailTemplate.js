@@ -14,24 +14,30 @@
  * @param {string} opts.fromName      — sender display name
  */
 function escapeHtml(str) {
-  if (str == null) return '';
+  if (str == null) return "";
   return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function safeUrl(url) {
   try {
     const parsed = new URL(url);
-    if (parsed.protocol !== 'https:') return '';
+    if (parsed.protocol !== "https:") return "";
     // Rebuild from parsed components — never return the raw input string
-    const normalized = (parsed.origin + parsed.pathname + parsed.search + parsed.hash)
-      .replace(/[\u0000-\u001F\u007F]+/g, '');
+    const normalized = (
+      parsed.origin +
+      parsed.pathname +
+      parsed.search +
+      parsed.hash
+    ).replace(/[\u0000-\u001F\u007F]+/g, "");
     return normalized;
-  } catch { return ''; }
+  } catch {
+    return "";
+  }
 }
 
 // Inline SVG hex logo mark — matches the iOS HexLogoMark
@@ -44,25 +50,35 @@ const HEX_LOGO = `<svg width="40" height="36" viewBox="0 0 40 36" xmlns="http://
 
 function buildEmailHtml(opts) {
   const {
-    greeting, personName, accentColor: rawAccent = '#F5A800',
-    monthLabel, bills, total, payMethod, payId, zelleUrl: customZelleUrl, fromName = 'BillHive',
+    greeting,
+    personName,
+    accentColor: rawAccent = "#F5A800",
+    monthLabel,
+    bills,
+    total,
+    payMethod,
+    payId,
+    zelleUrl: customZelleUrl,
+    fromName = "BillHive",
   } = opts;
 
   // Validate accentColor is a safe hex value before embedding in HTML/CSS
-  const accentColor = /^#[0-9A-Fa-f]{3,8}$/.test(rawAccent) ? rawAccent : '#F5A800';
+  const accentColor = /^#[0-9A-Fa-f]{3,8}$/.test(rawAccent)
+    ? rawAccent
+    : "#F5A800";
 
-  const accentBg     = accentColor + '22';
-  const accentBorder = accentColor + '55';
+  const accentBg = accentColor + "22";
+  const accentBorder = accentColor + "55";
 
   // ── Payment CTA ──────────────────────────────────────────────────────────
-  let payButtonHtml = '';
+  let payButtonHtml = "";
   const btnStyle = `display:inline-block;background:${accentColor};color:#0c0d0f;text-decoration:none;
     font-family:'Courier New',Courier,monospace;font-weight:700;font-size:14px;
     padding:13px 32px;border-radius:8px;letter-spacing:.04em;`;
   const subStyle = `font-size:11px;color:#4a4c52;font-family:'Courier New',Courier,monospace;
     letter-spacing:.04em;`;
 
-  if (payMethod === 'zelle' && (payId || customZelleUrl)) {
+  if (payMethod === "zelle" && (payId || customZelleUrl)) {
     if (customZelleUrl) {
       const safeZelleUrl = safeUrl(customZelleUrl);
       if (safeZelleUrl) {
@@ -87,26 +103,26 @@ function buildEmailHtml(opts) {
         <span style="${subStyle}">Send to ${escapeHtml(payId)} on Zelle</span>
       </td></tr>`;
     }
-  } else if (payMethod === 'venmo' && payId) {
-    const handle  = encodeURIComponent(payId.replace('@', ''));
-    const note    = encodeURIComponent(`Bills ${monthLabel}`);
-    const url     = `https://venmo.com/${handle}?txn=charge&amount=${total.toFixed(2)}&note=${note}`;
+  } else if (payMethod === "venmo" && payId) {
+    const handle = encodeURIComponent(payId.replace("@", ""));
+    const note = encodeURIComponent(`Bills ${monthLabel}`);
+    const url = `https://venmo.com/${handle}?txn=charge&amount=${total.toFixed(2)}&note=${note}`;
     payButtonHtml = `
     <tr><td align="center" style="padding:24px 0 6px;">
       <a href="${url}" style="${btnStyle}">Pay via Venmo — $${total.toFixed(2)}</a>
     </td></tr>
     <tr><td align="center" style="padding:0 0 4px;">
-      <span style="${subStyle}">Venmo @${escapeHtml(payId.replace('@', ''))}</span>
+      <span style="${subStyle}">Venmo @${escapeHtml(payId.replace("@", ""))}</span>
     </td></tr>`;
-  } else if (payMethod === 'cashapp' && payId) {
-    const tag = encodeURIComponent(payId.replace('$', ''));
+  } else if (payMethod === "cashapp" && payId) {
+    const tag = encodeURIComponent(payId.replace("$", ""));
     const url = `https://cash.app/$${tag}`;
     payButtonHtml = `
     <tr><td align="center" style="padding:24px 0 6px;">
       <a href="${url}" style="${btnStyle}">Pay via Cash App — $${total.toFixed(2)}</a>
     </td></tr>
     <tr><td align="center" style="padding:0 0 4px;">
-      <span style="${subStyle}">Cash App $${escapeHtml(payId.replace('$', ''))}</span>
+      <span style="${subStyle}">Cash App $${escapeHtml(payId.replace("$", ""))}</span>
     </td></tr>`;
   } else {
     payButtonHtml = `
@@ -120,14 +136,18 @@ function buildEmailHtml(opts) {
   }
 
   // ── Bill rows ─────────────────────────────────────────────────────────────
-  const billRowsHtml = bills.map(b => `
+  const billRowsHtml = bills
+    .map(
+      (b) => `
     <tr>
       <td style="padding:10px 16px;font-family:Arial,sans-serif;font-size:13px;
                  color:#767880;border-bottom:1px solid #2a2c31;">${escapeHtml(b.name)}</td>
       <td style="padding:10px 16px;font-family:'Courier New',Courier,monospace;font-size:13px;
                  color:${accentColor};font-weight:600;text-align:right;
                  border-bottom:1px solid #2a2c31;">$${b.amount.toFixed(2)}</td>
-    </tr>`).join('');
+    </tr>`,
+    )
+    .join("");
 
   // ── Full HTML ─────────────────────────────────────────────────────────────
   const html = `<!DOCTYPE html>
@@ -180,7 +200,7 @@ function buildEmailHtml(opts) {
           <td style="padding:28px 28px 6px;">
             <div style="font-size:22px;font-weight:800;color:#e4e5e8;font-family:Arial,sans-serif;
                         letter-spacing:-.02em;">
-              ${escapeHtml(greeting) || ('Hi ' + escapeHtml(personName) + ',')}
+              ${escapeHtml(greeting) || "Hi " + escapeHtml(personName) + ","}
             </div>
             <div style="font-size:13px;color:#767880;margin-top:8px;font-family:Arial,sans-serif;
                         line-height:1.5;">
@@ -276,22 +296,25 @@ function buildEmailHtml(opts) {
 
   // ── Plain text fallback ───────────────────────────────────────────────────
   const text = [
-    greeting || ('Hi ' + personName + ','),
-    '',
+    greeting || "Hi " + personName + ",",
+    "",
     `Here's your share of the bills for ${monthLabel}:`,
-    '',
-    ...bills.map(b => `  ${b.name.padEnd(24)} $${b.amount.toFixed(2)}`),
-    '',
-    '  ' + '─'.repeat(30),
+    "",
+    ...bills.map((b) => `  ${b.name.padEnd(24)} $${b.amount.toFixed(2)}`),
+    "",
+    "  " + "─".repeat(30),
     `  Total you owe:         $${total.toFixed(2)}`,
-    '',
-    payMethod === 'zelle'   && payId ? `Please pay via Zelle to ${payId}.` :
-    payMethod === 'venmo'   && payId ? `Please pay via Venmo @${payId.replace('@','')}.` :
-    payMethod === 'cashapp' && payId ? `Please pay via Cash App $${payId.replace('$','')}.` :
-    'Please send your share when you get a chance.',
-    '',
+    "",
+    payMethod === "zelle" && payId
+      ? `Please pay via Zelle to ${payId}.`
+      : payMethod === "venmo" && payId
+        ? `Please pay via Venmo @${payId.replace("@", "")}.`
+        : payMethod === "cashapp" && payId
+          ? `Please pay via Cash App $${payId.replace("$", "")}.`
+          : "Please send your share when you get a chance.",
+    "",
     `Thanks, ${fromName}`,
-  ].join('\n');
+  ].join("\n");
 
   return { html, text };
 }

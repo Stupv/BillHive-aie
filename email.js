@@ -28,26 +28,39 @@
  * }
  */
 
-const nodemailer = require('nodemailer');
-const sanitizeHtml = require('sanitize-html');
+const nodemailer = require("nodemailer");
+const sanitizeHtml = require("sanitize-html");
 
 // Permissive allowlist for email HTML — allows the tags/attributes used by
 // emailTemplate.js while stripping scripts, event handlers, and unsafe content.
 const EMAIL_SANITIZE_OPTS = {
   allowedTags: sanitizeHtml.defaults.allowedTags.concat([
-    'img', 'style', 'svg', 'polygon', 'rect', 'head', 'title', 'meta', 'html',
-    'body', 'thead', 'tbody', 'tfoot', 'th', 'center',
+    "img",
+    "style",
+    "svg",
+    "polygon",
+    "rect",
+    "head",
+    "title",
+    "meta",
+    "html",
+    "body",
+    "thead",
+    "tbody",
+    "tfoot",
+    "th",
+    "center",
   ]),
-  allowedAttributes: false,           // allow all attributes (inline styles are critical for email)
-  allowedSchemes: ['https', 'mailto', 'data'],
-  allowVulnerableTags: true,          // allow <style> for email client compatibility
+  allowedAttributes: false, // allow all attributes (inline styles are critical for email)
+  allowedSchemes: ["https", "mailto", "data"],
+  allowVulnerableTags: true, // allow <style> for email client compatibility
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 async function post(url, headers, body) {
   const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify(body),
   });
   const text = await res.text();
@@ -58,9 +71,9 @@ async function post(url, headers, body) {
 async function postForm(url, headers, formData) {
   // Mailgun uses form-encoded
   const res = await fetch(url, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
+      "Content-Type": "application/x-www-form-urlencoded",
       ...headers,
     },
     body: new URLSearchParams(formData).toString(),
@@ -72,50 +85,58 @@ async function postForm(url, headers, formData) {
 
 // ── Provider dispatch ─────────────────────────────────────────────────────────
 async function sendViaMailgun(cfg, to, subject, html, text) {
-  const region = cfg.mailgunRegion === 'eu' ? 'api.eu.mailgun.net' : 'api.mailgun.net';
+  const region =
+    cfg.mailgunRegion === "eu" ? "api.eu.mailgun.net" : "api.mailgun.net";
   const url = `https://${region}/v3/${cfg.mailgunDomain}/messages`;
-  const auth = 'Basic ' + Buffer.from('api:' + cfg.mailgunApiKey).toString('base64');
-  await postForm(url, { Authorization: auth }, {
-    from: `${cfg.fromName} <${cfg.fromEmail}>`,
-    to,
-    subject,
-    html,
-    text,
-  });
+  const auth =
+    "Basic " + Buffer.from("api:" + cfg.mailgunApiKey).toString("base64");
+  await postForm(
+    url,
+    { Authorization: auth },
+    {
+      from: `${cfg.fromName} <${cfg.fromEmail}>`,
+      to,
+      subject,
+      html,
+      text,
+    },
+  );
 }
 
 async function sendViaSendGrid(cfg, to, subject, html, text) {
-  await post('https://api.sendgrid.com/v3/mail/send',
-    { Authorization: 'Bearer ' + cfg.sendgridApiKey },
+  await post(
+    "https://api.sendgrid.com/v3/mail/send",
+    { Authorization: "Bearer " + cfg.sendgridApiKey },
     {
       personalizations: [{ to: [{ email: to }] }],
       from: { email: cfg.fromEmail, name: cfg.fromName },
       subject,
       content: [
-        { type: 'text/plain', value: text },
-        { type: 'text/html',  value: html },
+        { type: "text/plain", value: text },
+        { type: "text/html", value: html },
       ],
-    }
+    },
   );
 }
 
 async function sendViaResend(cfg, to, subject, html, text) {
-  await post('https://api.resend.com/emails',
-    { Authorization: 'Bearer ' + cfg.resendApiKey },
+  await post(
+    "https://api.resend.com/emails",
+    { Authorization: "Bearer " + cfg.resendApiKey },
     {
       from: `${cfg.fromName} <${cfg.fromEmail}>`,
       to: [to],
       subject,
       html,
       text,
-    }
+    },
   );
 }
 
 async function sendViaSmtp(cfg, to, subject, html, text) {
   const transporter = nodemailer.createTransport({
-    host:   cfg.smtpHost,
-    port:   parseInt(cfg.smtpPort) || 587,
+    host: cfg.smtpHost,
+    port: parseInt(cfg.smtpPort) || 587,
     secure: cfg.smtpSecure === true || cfg.smtpPort == 465,
     auth: {
       user: cfg.smtpUser,
@@ -124,7 +145,7 @@ async function sendViaSmtp(cfg, to, subject, html, text) {
     tls: { rejectUnauthorized: false }, // allow self-signed for self-hosted
   });
   await transporter.sendMail({
-    from:    `"${cfg.fromName}" <${cfg.fromEmail}>`,
+    from: `"${cfg.fromName}" <${cfg.fromEmail}>`,
     to,
     subject,
     text,
@@ -141,19 +162,24 @@ async function sendViaSmtp(cfg, to, subject, html, text) {
  * @param {string} text    — plain text fallback
  */
 async function sendEmail(cfg, to, subject, html, text) {
-  if (!cfg || !cfg.provider) throw new Error('No email provider configured');
-  if (!cfg.fromEmail)        throw new Error('No sender email configured');
-  if (!to)                   throw new Error('No recipient email address');
+  if (!cfg || !cfg.provider) throw new Error("No email provider configured");
+  if (!cfg.fromEmail) throw new Error("No sender email configured");
+  if (!to) throw new Error("No recipient email address");
 
   // Sanitize HTML to prevent injection — breaks CodeQL taint chain
   const safeHtml = sanitizeHtml(html, EMAIL_SANITIZE_OPTS);
 
   switch (cfg.provider) {
-    case 'mailgun':  return sendViaMailgun(cfg, to, subject, safeHtml, text);
-    case 'sendgrid': return sendViaSendGrid(cfg, to, subject, safeHtml, text);
-    case 'resend':   return sendViaResend(cfg, to, subject, safeHtml, text);
-    case 'smtp':     return sendViaSmtp(cfg, to, subject, safeHtml, text);
-    default: throw new Error(`Unknown provider: ${cfg.provider}`);
+    case "mailgun":
+      return sendViaMailgun(cfg, to, subject, safeHtml, text);
+    case "sendgrid":
+      return sendViaSendGrid(cfg, to, subject, safeHtml, text);
+    case "resend":
+      return sendViaResend(cfg, to, subject, safeHtml, text);
+    case "smtp":
+      return sendViaSmtp(cfg, to, subject, safeHtml, text);
+    default:
+      throw new Error(`Unknown provider: ${cfg.provider}`);
   }
 }
 
@@ -161,9 +187,14 @@ async function sendEmail(cfg, to, subject, html, text) {
 function maskConfig(cfg) {
   if (!cfg) return null;
   const masked = { ...cfg };
-  const secretFields = ['mailgunApiKey','sendgridApiKey','resendApiKey','smtpPass'];
-  secretFields.forEach(f => {
-    if (masked[f]) masked[f] = masked[f].slice(0, 4) + '••••••••••••';
+  const secretFields = [
+    "mailgunApiKey",
+    "sendgridApiKey",
+    "resendApiKey",
+    "smtpPass",
+  ];
+  secretFields.forEach((f) => {
+    if (masked[f]) masked[f] = masked[f].slice(0, 4) + "••••••••••••";
   });
   return masked;
 }
